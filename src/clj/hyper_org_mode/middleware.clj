@@ -31,6 +31,12 @@
   (fn [req]
     (f (assoc req :conf conf))))
 
+(defn append-state
+  "Append the state hashmap to :state key of a request"
+  [f state]
+  (fn [req]
+    (f (assoc req :state state))))
+
 (defn keyword-wrap-params
   "Copied from ring.middleware.params to keywordize param keys
 

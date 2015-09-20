@@ -6,6 +6,8 @@ Use org-mode for project management with a group
 - Web reporter (read-only) that updates whenever a file changes
 - Edit locally, share globally
 - Never need to leave emacs
+- WTAF
+- yo
 ** Implementation
 *** File watching and updating
 1) As soon as a file is changed all clients are sent the latest version
@@ -13,10 +15,12 @@ Use org-mode for project management with a group
 - Use emacs run-with-timer which is used by auto-revert-set-timer to auto revert buffers when files change but are not modified
 - If there is a new version, download it
 2) On save, synchronizes with master
-- Master takes the change, atomically changes the file
-- Merge the change into change tree using three way merge (see how git does it)
-- If there is a conflict that can not be resolved on merge, reject the save
-- On reject, the client pulls down latest master and must resolve using ediff
+- Send the changed file, previous version of the file
+- Server attempts to merge the file with master copy using three way merge (diff3)
+  - Command: diff3 -m changedfile previousfile masterfile
+  - Need to wrap the files with atoms to synchronize changes across threads
+- If there is a conflict that can not be resolved on merge, reject the save and return the file with diff3 notes
+- On reject, the client pulls opens up ediff with the output of the merge
 - Client saves file after resolving conflict, back to step 2
 3) Master notifies clients of the change
 - Export org file to json
