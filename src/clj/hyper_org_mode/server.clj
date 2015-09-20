@@ -2,7 +2,7 @@
   (:require [compojure.core :refer [defroutes GET POST]]
             [compojure.route :refer [not-found]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-            [ring.util.response :refer [file-response]]
+            [ring.util.response :refer [file-response content-type]]
             [org.httpkit.server :refer [run-server]]
             [cheshire.core :refer [generate-string]]
             [hyper-org-mode.settings :as settings]
@@ -20,9 +20,6 @@ h/todo.org"
 
 ;; TODO implement change log of master
 
-(defn storage-exists? [path]
-  (.exists (clojure.java.io/file (str path "/" "./.git"))))
-
 (defn get-merge-conflict [current previous proposed]
   (:out (clojure.java.shell/sh "diff3" "-m"
                                "-L" "current" "-L" "previous" "-L" "proposed"
@@ -32,17 +29,15 @@ h/todo.org"
 
 (defn merge-files [current previous proposed]
   (println "MERGING" (map #(.getAbsolutePath %) [current previous proposed]))
-  ;; Throw an exception if there is a conflict with master
-  (when-not (clojure.string/blank?
-             (:out (clojure.java.shell/sh "diff3" "-A"
-                                          (.getAbsolutePath current)
-                                          (.getAbsolutePath previous)
-                                          (.getAbsolutePath proposed))))
-    (throw (Exception. "Merge conflict")))
-  (:out (clojure.java.shell/sh "diff3" "-m"
-                            (.getAbsolutePath current)
-                            (.getAbsolutePath previous)
-                            (.getAbsolutePath proposed))))
+  ;; Throw an exception if there is a conflict when merging
+  ;; diff3 has an exit code of 1 if there are conflicts
+  (let [result (clojure.java.shell/sh "diff3" "-m"
+                                      (.getAbsolutePath current)
+                                      (.getAbsolutePath previous)
+                                      (.getAbsolutePath proposed))]
+    (if (= 1 (:exit result))
+      (throw (Exception. "Merge conflict"))
+      (:out result))))
 
 (defn commit! [storage-path file-name state file-map]
   ;; Take change, previous, master and merge them
@@ -62,20 +57,25 @@ h/todo.org"
                    (:tempfile proposed))]))))
 
 (def not-found-response
-  {:status_code 404
-   :body "{\"message\": \"Not found\", \"status_code\": 404}"})
+  (-> {:status_code 404
+       :body "{\"message\": \"Not found\", \"status_code\": 404}"}
+      (content-type "application/json")))
 
 (def ok-response
-  {:status_code 404
-   :body "{\"message\": \"ok\", \"status_code\": 200}"})
+  (-> {:status_code 404
+       :body "{\"message\": \"ok\", \"status_code\": 200}"}
+      (content-type "application/json")))
 
 (defn conflict-response [conflict]
-  {:status_code 301
-   :body conflict})
+  (-> {:status_code 301
+       :body (generate-string {:message "Conflict while merging"
+                               :diff conflict})}
+      (content-type "application/json")))
 
 (def bad-response
-  {:status_code 301
-   :body "{\"message\": \"bad request\", \"status_code\": 301}"})
+  (-> {:status_code 301
+       :body (generate-string {:message "bad request" :status_code 301})}
+      (content-type "application/json")))
 
 (defn push-file [{:keys [params multipart-params body conf state]}]
   "Example:

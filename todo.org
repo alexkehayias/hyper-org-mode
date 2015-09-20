@@ -6,8 +6,7 @@ Use org-mode for project management with a group
 - Web reporter (read-only) that updates whenever a file changes
 - Edit locally, share globally
 - Never need to leave emacs
-- WTAF
-- yo
+- hello?
 ** Implementation
 *** File watching and updating
 1) As soon as a file is changed all clients are sent the latest version
