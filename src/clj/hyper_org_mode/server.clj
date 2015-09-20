@@ -2,6 +2,7 @@
   (:require [compojure.core :refer [defroutes GET POST]]
             [compojure.route :refer [not-found]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.util.response :refer [file-response]]
             [org.httpkit.server :refer [run-server]]
             [cheshire.core :refer [generate-string]]
             [hyper-org-mode.settings :as settings]
@@ -74,7 +75,7 @@ h/todo.org"
 
 (defn pull-file [{:keys [params conf state]}]
   (if-let [file (get @state (:file-path params))]
-    {:body (slurp file)}
+    (file-response (str (get conf "org.storage-path") "/" (:file-path params)))
     not-found-response))
 
 (defonce server (atom nil))
