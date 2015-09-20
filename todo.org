@@ -1,0 +1,37 @@
+* About Super Org Mode
+Use org-mode for project management with a group
+- Shared collection of files that are shared by multiple clients
+- Real-time updates to all clients
+- Literally just a text file
+- Web reporter (read-only) that updates whenever a file changes
+- Edit locally, share globally
+- Never need to leave emacs
+** Implementation
+*** File watching and updating
+1) As soon as a file is changed all clients are sent the latest version
+- Use emacs idle-timer to poll for changes from the master
+- Use emacs run-with-timer which is used by auto-revert-set-timer to auto revert buffers when files change but are not modified
+- If there is a new version, download it
+2) On save, synchronizes with master
+- Master takes the change, atomically changes the file
+- Merge the change into change tree using three way merge (see how git does it)
+- If there is a conflict that can not be resolved on merge, reject the save
+- On reject, the client pulls down latest master and must resolve using ediff
+- Client saves file after resolving conflict, back to step 2
+3) Master notifies clients of the change
+- Export org file to json
+- Push json to websocket sessions
+- Call web hooks
+4) Re-render the web reporter
+- Take the json output and use templates to generate the view
+*** Export to json
+ox-json is a backend for org export that emits json as a list of outlines where outlines are nested dictionaries
+*** Web reporter
+- A webserver that serves the view of the org mode generated from the todo files.
+- Holds a websocket connection with the client browser and pushes a new version of all the json to re-render the view
+- Options for how to view the project
+- Timeline view
+- List view
+- Card view
+  - Each outline is a swimlane
+  - Each TODO is a card

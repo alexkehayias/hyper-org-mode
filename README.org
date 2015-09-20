@@ -1,0 +1,5 @@
+* hyper-org-mode
+Experimental Clojure/ClojureScript server for team based org-mode project management.
+** License
+Copyright © 2015 Alex Kehayias
+Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.
