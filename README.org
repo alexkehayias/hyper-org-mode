@@ -1,5 +1,17 @@
 * hyper-org-mode
 Experimental Clojure/ClojureScript server for team based org-mode project management.
+** API
+The server exposes a
+*** Pull
+Pull the latest master version of the project file
+#+BEGIN_SRC
+  curl 127.0.0.1:1986/api/v1/pull/todo.org
+#+END_SRC
+*** Push
+Push the changes to the project file where the proposed file is the file with your changes and previous file is a local copy of the last master file.
+#+BEGIN_SRC
+  curl 127.0.0.1:1986/api/v1/push/todo.org -F "proposed=@todo.org" -F "previous=previous.org"
+#+END_SRC
 ** License
 Copyright © 2015 Alex Kehayias
 Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.

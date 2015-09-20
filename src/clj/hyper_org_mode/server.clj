@@ -18,12 +18,27 @@
 h/todo.org"
   "curl -X get 127.0.0.1:1986/api/v1/pull/todo.org")
 
+;; TODO implement change log of master
+
 (defn storage-exists? [path]
   (.exists (clojure.java.io/file (str path "/" "./.git"))))
 
+(defn get-merge-conflict [current previous proposed]
+  (:out (clojure.java.shell/sh "diff3" "-m"
+                               "-L" "current" "-L" "previous" "-L" "proposed"
+                               (.getAbsolutePath current)
+                               (.getAbsolutePath previous)
+                               (.getAbsolutePath proposed))))
+
 (defn merge-files [current previous proposed]
   (println "MERGING" (map #(.getAbsolutePath %) [current previous proposed]))
-  ;; TODO throw if there is a conflict!
+  ;; Throw an exception if there is a conflict with master
+  (when-not (clojure.string/blank?
+             (:out (clojure.java.shell/sh "diff3" "-A"
+                                          (.getAbsolutePath current)
+                                          (.getAbsolutePath previous)
+                                          (.getAbsolutePath proposed))))
+    (throw (Exception. "Merge conflict")))
   (:out (clojure.java.shell/sh "diff3" "-m"
                             (.getAbsolutePath current)
                             (.getAbsolutePath previous)
@@ -38,8 +53,13 @@ h/todo.org"
                                (merge-files (get % file-name (:tempfile proposed))
                                             (:tempfile previous)
                                             (:tempfile proposed)))
-                         (assoc % file-name (clojure.java.io/file (str storage-path "/" file-name))))))
-         (catch Exception e (do (println e) nil)))))
+                         (assoc % file-name (clojure.java.io/file (str storage-path "/" file-name)))))
+             [:success file-name])
+         (catch Exception e
+           [:fail (get-merge-conflict
+                   (get @state file-name (:tempfile proposed))
+                   (:tempfile previous)
+                   (:tempfile proposed))]))))
 
 (def not-found-response
   {:status_code 404
@@ -49,16 +69,13 @@ h/todo.org"
   {:status_code 404
    :body "{\"message\": \"ok\", \"status_code\": 200}"})
 
+(defn conflict-response [conflict]
+  {:status_code 301
+   :body conflict})
+
 (def bad-response
   {:status_code 301
    :body "{\"message\": \"bad request\", \"status_code\": 301}"})
-
-(defn log [{:keys [conf]}]
-  {:body (->> (settings/get-or-throw conf "org.storage-path")
-              (load-repo)
-              (git-log)
-              (map #(.getFullMessage %) )
-              (generate-string))})
 
 (defn push-file [{:keys [params multipart-params body conf state]}]
   "Example:
@@ -66,12 +83,13 @@ h/todo.org"
   ;; TODO merge the file into the master version of the file
   ;; if the merge fails return a fail response
   (println "FIle path" (:file-path params))
-  (if-let [commited-file (commit! (settings/get-or-throw conf "org.storage-path")
-                                  (:file-path params)
-                                  state
-                                  multipart-params)]
-    ok-response
-    bad-response))
+  (let [[status result] (commit! (settings/get-or-throw conf "org.storage-path")
+                                 (:file-path params)
+                                 state
+                                 multipart-params)]
+    (if (= status :success)
+      ok-response
+      (conflict-response result))))
 
 (defn pull-file [{:keys [params conf state]}]
   (if-let [file (get @state (:file-path params))]
@@ -87,9 +105,6 @@ h/todo.org"
   (GET "/api/v1/pull/:file-path"
        request
        pull-file)
-  (GET "/api/v1/log/:file-path"
-       request
-       commit-log)
   (not-found not-found-response))
 
 (defn app [conf state]
