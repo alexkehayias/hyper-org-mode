@@ -20,6 +20,8 @@
 
   :source-paths ["src/clj" "src/cljs"]
 
+  :main hyper-org-mode.server
+
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
 
   :cljsbuild {

@@ -1,5 +1,6 @@
 (ns hyper-org-mode.server
-  (:require [compojure.core :refer [defroutes GET POST]]
+  (:require [clojure.java.shell :refer [sh]]
+            [compojure.core :refer [defroutes GET POST]]
             [compojure.route :refer [not-found]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.util.response :refer [file-response content-type]]
@@ -19,22 +20,23 @@ h/todo.org"
   "curl -X get 127.0.0.1:1986/api/v1/pull/todo.org")
 
 ;; TODO implement change log of master
+;; TODO implement backups
 
 (defn get-merge-conflict [current previous proposed]
-  (:out (clojure.java.shell/sh "diff3" "-m"
-                               "-L" "current" "-L" "previous" "-L" "proposed"
-                               (.getAbsolutePath current)
-                               (.getAbsolutePath previous)
-                               (.getAbsolutePath proposed))))
+  (:out (sh "diff3" "-m"
+            "-L" "current" "-L" "previous" "-L" "proposed"
+            (.getAbsolutePath current)
+            (.getAbsolutePath previous)
+            (.getAbsolutePath proposed))))
 
 (defn merge-files [current previous proposed]
   (println "MERGING" (map #(.getAbsolutePath %) [current previous proposed]))
   ;; Throw an exception if there is a conflict when merging
   ;; diff3 has an exit code of 1 if there are conflicts
-  (let [result (clojure.java.shell/sh "diff3" "-m"
-                                      (.getAbsolutePath current)
-                                      (.getAbsolutePath previous)
-                                      (.getAbsolutePath proposed))]
+  (let [result (sh "diff3" "-m"
+                   (.getAbsolutePath current)
+                   (.getAbsolutePath previous)
+                   (.getAbsolutePath proposed))]
     (if (= 1 (:exit result))
       (throw (Exception. "Merge conflict"))
       (:out result))))

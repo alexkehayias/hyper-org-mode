@@ -1,7 +1,13 @@
 * hyper-org-mode
 Experimental Clojure/ClojureScript server for team based org-mode project management.
+** Running the Server
+#+BEGIN_SRC bash
+lein run resources/local.config.properties
+#+END_SRC
+- Defaults to [[http://127.0.0.1:1986]]
+- See [[https://github.com/alexkehayias/hyper-org-mode-el]] for integration with emacs
 ** API
-The server exposes a
+The server exposes the following endpoints for a client to synchronize files.
 *** Pull
 Pull the latest master version of the project file
 #+BEGIN_SRC
